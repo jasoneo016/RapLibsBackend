@@ -14,44 +14,64 @@ admin.initializeApp({
 });
 
 var db = admin.database();
+var artistsRef = db.ref("artists");
+var albumsRef = db.ref("albums");
+var lyricsRef = db.ref("lyrics");
+var adLibsRef = db.ref("adlibs");
 
 
-storeArtistNames();
+storeArtistNameImage();
+// addImageLink();
+// storeAlbums();
 
-function storeArtistNames() {
+function storeArtistNameImage() {
 
-    var artistsList;
-    var artistsRef = db.ref("artists");
     var params = { Bucket: myBucket,
         Delimiter: '/',
         Prefix: 'RapLibs/'
     };
     s3.listObjects(params, function(err, data) {
 
-        artistsList = [];
+        var artistList = [];
+        var imageList = [];
 
         if (err) return console.error(err);
 
         for (var i = 0; i < data.CommonPrefixes.length; i++) {
             var path = data.CommonPrefixes[i].Prefix.split('/');
             var artistName = path[1];
-            // console.log(artistName);
-            artistsList.push(artistName);
-            artistsRef.set({
-                name: artistName
+            artistList.push(artistName);
+        }
+
+        for (var i = 0; i < artistList.length; i++) {
+            params.Prefix = 'RapLibs/' + artistList[i];
+            var artistFace = artistList[i].replace(/\s+/g, '').toLowerCase() + 'face.png';
+            var imageLink = 'https://s3-us-west-1.amazonaws.com/' + 'raplibsbucket/' + params.Prefix + '/' + artistFace;
+            imageList.push(imageLink);
+        }
+
+        for (var i = 0; i < artistList.length; i++) {
+            artistsRef.push({
+                name: artistList[i],
+                image: imageList[i],
+                timestamp: Date.now(),
+                counter: 0,
+                album1: '',
+                lyric1: '',
+
             });
         }
         return;
     });
 }
 
+
 function storeAlbums() {
 
-    var albumsRef = db.ref("albums");
 
-    var params = { Bucket: myBucket,
-        Delimiter: '/',
-        Prefix: 'RapLibs/'
+    var params = { Bucket: myBucket
+        // Delimiter: '/',
+        // Prefix: 'RapLibs/'
     };
 
     s3.listObjects(params, function(err, data) {
@@ -59,12 +79,6 @@ function storeAlbums() {
 
         for(var i = 0; i < data.Contents.length; i++) {
             data.Contents[i].Url = 'https://s3-us-west-1.amazonaws.com/' + data.Name + '/' + data.Contents[i].Key;
-
-            albumsRef.push({
-                name: artistName,
-                image: data.Contents[i].Url,
-                albums: ""
-            });
             console.log(data.Contents[i].Url);
         }
         return;
@@ -72,8 +86,6 @@ function storeAlbums() {
 }
 
 function storeLyrics() {
-
-    var lyricsRef = db.ref("lyrics");
 
     var params = { Bucket: myBucket,
         Delimiter: '/',
@@ -98,8 +110,6 @@ function storeLyrics() {
 }
 
 function storeAdLibs() {
-
-    var adLibsRef = db.ref("adlibs");
 
     var params = { Bucket: myBucket,
         Delimiter: '/',
