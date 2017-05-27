@@ -3,11 +3,8 @@ var s3 = new AWS.S3();
 AWS.config.update({region:'us-west-1'});
 
 var myBucket = 'raplibsbucket';
-
 var admin = require("firebase-admin");
-
 var serviceAccount = require("/Users/admin/IdeaProjects/RapLibsFirebase/rap-libs-firebase-adminsdk-fu0za-15f6bd6601.json");
-
 admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
     databaseURL: "https://rap-libs.firebaseio.com"
@@ -22,16 +19,7 @@ var adLibsRef = db.ref("adlibs");
 
 storeArtistNameImage();
 storeAlbums();
-storeLyrics();
-
-
-//nested for loop n^3
-//1st: get artist (name, image, timestamp, counter),(get UUID), var artistUUID, arrayListAlbumUUID, arrayListLyricsUUID, arrayListAdLibs
-//2nd: get albums (name, image, timestamp, counter), (get UUID), var albumUUID stored into albumUUIDArray for artist to use
-//      arrayListLyrics for album
-//3rd: get lyrics from album (lyrics, name, image, timestamp, counter, download link) store into arrayListLyricsUUID for artist
-
-
+storeAdLibs();
 
 function storeArtistNameImage() {
 
@@ -94,13 +82,10 @@ function storeAlbums() {
 
         if (err) return console.error(err);
 
-
         for(var i = 0; i < data.Contents.length; i++) {
-            // console.log(data.Contents[i].Key);
             if (data.Contents[i].Key.includes('Albums')) {
                 var path = data.Contents[i].Key.split('/');
                 tempAlbumList.push(path[1] + '/' + path[3]);
-                // console.log(path[1] + '/' + path[3]);
                 albumList = tempAlbumList.filter(onlyUnique);
             }
         }
@@ -111,8 +96,6 @@ function storeAlbums() {
             var artistName = albumPath[0];
             params.Prefix = 'RapLibs/' + artistName + '/Albums/';
             var albumName = albumPath[1];
-            // console.log(artistKey);
-            // console.log(albumName);
             var albumPic = albumName.replace(/\s+/g, '').toLowerCase() + '.jpg';
             var albumPicLink = 'https://s3-us-west-1.amazonaws.com/' + 'raplibsbucket/' + params.Prefix + albumName + '/' + albumPic;
             imageList.push(albumPicLink);
@@ -127,39 +110,55 @@ function storeAlbums() {
             });
 
             var artistKey = artistName.replace(/[ ,.]/g, "").replace('$', 's').toLowerCase();
-            console.log(artistKey);
-            console.log(albumName);
             artistsRef.child(artistKey).child(albumName).set({
-                uuid: artistsRef.push().key
+                uuid: albumsRef.push().key
             });
         }
         return;
     });
 }
 
-function storeLyrics() {
+function storeAdLibs() {
 
     var params = { Bucket: myBucket};
 
     s3.listObjects(params, function(err, data) {
+
+        var artistPicList = [];
+
         if (err) return console.error(err);
 
         for(var i = 0; i < data.Contents.length; i++) {
-
             if (data.Contents[i].Key.includes('.mp3')) {
-                console.log(data.Contents[i].Key);
+                path = data.Contents[i].Key.split('/');
+                var artistName = path[1];
+                if (data.Contents[i].Key.includes('AdLibs') && path[3].includes('.mp3')) {
+                    var mp3AdLibLink = 'https://s3-us-west-1.amazonaws.com/' + 'raplibsbucket/' + data.Contents[i].Key;
+                    var artistKey = artistName.replace(/[ ,.]/g, "").replace('$', 's').toLowerCase();
+                    var artistPic = 'https://s3-us-west-1.amazonaws.com/' + 'raplibsbucket/RapLibs/' + artistName + '/AdLibs/'
+                        + artistKey + '.jpg';
+                    var lyric = path[3].substr(0, path[3].length-4);
+                    adLibsRef.push({
+                        artist: artistName,
+                        image: artistPic,
+                        lyric: lyric,
+                        mp3: mp3AdLibLink,
+                        timestamp: Date.now(),
+                        counter: 0
+                    });
+
+                    var artistKey = artistName.replace(/[ ,.]/g, "").replace('$', 's').toLowerCase();
+                    artistsRef.child(artistKey).child("Ad Libs").set({
+                        uuid: adLibsRef.push().key
+                    });
+                }
             }
-            // lyricsRef.push({
-            //     name: artistName,
-            //     image: data.Contents[i].Url,
-            //     albums: ""
-            // });
         }
         return;
     });
 }
 
-function storeAdLibs() {
+function storeLyrics() {
 
     var params = { Bucket: myBucket,
         Delimiter: '/',
