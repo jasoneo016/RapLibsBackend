@@ -78,7 +78,7 @@ function storeArtistNameImage() {
         for (var i = 0; i < artistList.length; i++) {
             params.Prefix = 'RapLibs/' + artistList[i];
             var artistKey = artistList[i].replace(/[ ,.]/g, "").replace('$', 's').toLowerCase();
-            var artistFace = artistList[i].replace(/\s+/g, '').toLowerCase() + 'face.png';
+            var artistFace = artistList[i].replace(/[ ,.]/g, "").toLowerCase() + 'face.png';
             var imageLink = 'https://s3-us-west-1.amazonaws.com/' + 'raplibsbucket/' + params.Prefix + '/' + artistFace;
             imageList.push(imageLink);
             artistKeyList.push(artistKey);
@@ -86,6 +86,7 @@ function storeArtistNameImage() {
 
         for (var i = 0; i < artistList.length; i++) {
             artistsRef.child(artistKeyList[i]).set({
+                name: artistList[i],
                 image: imageList[i],
                 timestamp: Date.now(),
                 counter: 0
@@ -123,7 +124,6 @@ function storeAlbums() {
             var albumPath = albumList[i].split('/');
             var artistName = albumPath[0];
             var artistKey = artistName.replace(/[ ,.]/g, "").replace('$', 's').toLowerCase();
-            uniqueArtists.push(artistKey);
             params.Prefix = 'RapLibs/' + artistName + '/Albums/';
             var albumName = albumPath[1];
             var albumPic = albumName.replace(/\s+/g, '').toLowerCase() + '.jpg';
@@ -144,16 +144,16 @@ function storeAlbums() {
             newAlbumsRef.set(albumData);
 
             if (uniqueArtists.includes(artistKey)) {
-                albumuuidCounter = 0;
+                albumuuidCounter++;
             } else {
                 uniqueArtists.push(artistKey);
+                albumuuidCounter = 0;
             }
 
             var uuid = 'uuid' + albumuuidCounter;
-            albumuuidCounter++;
             var updatedUUIDs = {};
             updatedUUIDs[uuid] = uuidKey;
-            artistsRef.child(artistKey).child(albumName).update(updatedUUIDs);
+            artistsRef.child(artistKey).child("Albums").update(updatedUUIDs);
         }
         return;
     });
@@ -190,7 +190,8 @@ function storeAdLibs() {
                         image: artistPic,
                         lyric: lyric,
                         mp3: mp3AdLibLink,
-                        album: false,
+                        album: '',
+                        song: '',
                         timestamp: Date.now(),
                         counter: 0
                     }
@@ -276,5 +277,3 @@ function storeLyrics() {
 function onlyUnique(value, index, self) {
     return self.indexOf(value) === index;
 }
-
-
