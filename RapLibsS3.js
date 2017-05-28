@@ -178,8 +178,9 @@ function storeAdLibs() {
                 if (data.Contents[i].Key.includes('AdLibs') && path[3].includes('.mp3')) {
                     var mp3AdLibLink = 'https://s3-us-west-1.amazonaws.com/' + 'raplibsbucket/' + data.Contents[i].Key;
                     var artistKey = artistName.replace(/[ ,.]/g, "").replace('$', 's').toLowerCase();
-                    var artistPic = 'https://s3-us-west-1.amazonaws.com/' + 'raplibsbucket/RapLibs/' + artistName + '/AdLibs/'
+                    var artistPic = 'https://s3-us-west-1.amazonaws.com/' + 'raplibsbucket/RapLibs/' + artistName + '/'
                         + artistKey + '.jpg';
+                    console.log(artistPic);
                     var lyric = path[3].substr(0, path[3].length - 4);
 
                     var newLyricsRef = lyricsRef.push();
