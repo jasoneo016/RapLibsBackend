@@ -1,8 +1,13 @@
+//AWS S3 Bucket
 var AWS = require('aws-sdk');
 var s3 = new AWS.S3();
 AWS.config.update({region:'us-west-1'});
 
+//Config file for root access to add and delete
+AWS.config.loadFromPath('aws-config.json');
 var myBucket = 'raplibsbucket';
+
+//Firebase Authorization
 var admin = require("firebase-admin");
 var serviceAccount = require("/Users/admin/IdeaProjects/RapLibsFirebase/rap-libs-firebase-adminsdk-fu0za-15f6bd6601.json");
 admin.initializeApp({
@@ -10,16 +15,19 @@ admin.initializeApp({
     databaseURL: "https://rap-libs.firebaseio.com"
 });
 
+//Firebase Relational Database
 var db = admin.database();
 var artistsRef = db.ref("artists");
 var albumsRef = db.ref("albums");
 var lyricsRef = db.ref("lyrics");
 var adLibsRef = db.ref("adlibs");
 
-
+deleteDSStore();
 storeArtistNameImage();
 storeAlbums();
 storeAdLibs();
+// storeLyrics();
+
 
 function storeArtistNameImage() {
 
@@ -54,9 +62,7 @@ function storeArtistNameImage() {
             artistsRef.child(artistKeyList[i]).set({
                 image: imageList[i],
                 timestamp: Date.now(),
-                counter: 0,
-                album1: '2',
-                lyric1: ''
+                counter: 0
             });
         }
 
@@ -124,8 +130,6 @@ function storeAdLibs() {
 
     s3.listObjects(params, function(err, data) {
 
-        var artistPicList = [];
-
         if (err) return console.error(err);
 
         for(var i = 0; i < data.Contents.length; i++) {
@@ -137,7 +141,7 @@ function storeAdLibs() {
                     var artistKey = artistName.replace(/[ ,.]/g, "").replace('$', 's').toLowerCase();
                     var artistPic = 'https://s3-us-west-1.amazonaws.com/' + 'raplibsbucket/RapLibs/' + artistName + '/AdLibs/'
                         + artistKey + '.jpg';
-                    var lyric = path[3].substr(0, path[3].length-4);
+                    var lyric = path[3].substr(0, path[3].length - 4);
                     adLibsRef.push({
                         artist: artistName,
                         image: artistPic,
@@ -152,6 +156,26 @@ function storeAdLibs() {
                         uuid: adLibsRef.push().key
                     });
                 }
+                // else if (data.Contents[i].Key.includes('AdLibs') && !path[3].includes('.mp3')) {
+                //     var albumName = path[3];
+                //     var songName = path[4];
+                //     var lyric = path[5].substr(0, path[5].length - 4);
+                //     var mp3AdLibLink = 'https://s3-us-west-1.amazonaws.com/' + 'raplibsbucket/' + data.Contents[i].Key;
+                //     var pic = 'https://s3-us-west-1.amazonaws.com/' + 'raplibsbucket/RapLibs/' + artistName + '/AdLibs/'
+                //         + albumName + '/' + songName + '/pic.jpg';
+                //     adLibsRef.push({
+                //         artist: artistName,
+                //         image: pic,
+                //         lyric: lyric,
+                //         mp3: mp3AdLibLink,
+                //         timestamp: Date.now(),
+                //         counter: 0
+                //     });
+                //     var artistKey = artistName.replace(/[ ,.]/g, "").replace('$', 's').toLowerCase();
+                //     artistsRef.child(artistKey).child("Ad Libs").set({
+                //         uuid: adLibsRef.push().key
+                //     });
+                // }
             }
         }
         return;
@@ -160,23 +184,39 @@ function storeAdLibs() {
 
 function storeLyrics() {
 
-    var params = { Bucket: myBucket,
-        Delimiter: '/',
-        Prefix: 'RapLibs/'
-    };
+    var params = { Bucket: myBucket};
 
     s3.listObjects(params, function(err, data) {
+
         if (err) return console.error(err);
 
         for(var i = 0; i < data.Contents.length; i++) {
-            data.Contents[i].Url = 'https://s3-us-west-1.amazonaws.com/' + data.Name + '/' + data.Contents[i].Key;
+            if (data.Contents[i].Key.includes('.mp3') && (data.Contents[i].Key.includes('Albums'))) {
+                console.log(data.Contents[i].Key);
+                path = data.Contents[i].Key.split('/');
+                var artistName = path[1];
+                var albumName = path[3];
+                var songName = path[4];
+                var mp3SongLink = 'https://s3-us-west-1.amazonaws.com/' + 'raplibsbucket/' + data.Contents[i].Key;
+                var albumKey = albumName.replace(/[ ,.]/g, "").replace('$', 's').toLowerCase();
+                var albumPic = 'https://s3-us-west-1.amazonaws.com/' + 'raplibsbucket/RapLibs/' + artistName + '/Albums/'
+                    + albumKey + '.jpg';
+                var lyric = path[3].substr(0, path[3].length-4);
+                // adLibsRef.push({
+                //     artist: artistName,
+                //     image: artistPic,
+                //     lyric: lyric,
+                //     mp3: mp3AdLibLink,
+                //     timestamp: Date.now(),
+                //     counter: 0
+                // });
+                //
+                // var artistKey = artistName.replace(/[ ,.]/g, "").replace('$', 's').toLowerCase();
+                // artistsRef.child(artistKey).child("Ad Libs").set({
+                //     uuid: adLibsRef.push().key
+                // });
 
-            adLibsRef.push({
-                name: artistName,
-                image: data.Contents[i].Url,
-                albums: ""
-            });
-            console.log(data.Contents[i].Url);
+            }
         }
         return;
     });
@@ -184,6 +224,31 @@ function storeLyrics() {
 
 function onlyUnique(value, index, self) {
     return self.indexOf(value) === index;
+}
+
+function deleteDSStore() {
+
+    var DSStore = '.DS_Store';
+    var params = { Bucket: myBucket };
+
+    s3.listObjects(params, function(err, data) {
+        for(var i = 0; i < data.Contents.length; i++) {
+            if (data.Contents[i].Key.includes(DSStore)) {
+                console.log(data.Contents[i].Key);
+                params.Delete = {Objects:[]};
+                params.Delete.Objects.push({Key: data.Contents[i].Key});
+
+                s3.deleteObjects(params, function (err, data) {
+                    if (data) {
+                        console.log(".DS_Store file deleted successfully.");
+                    }
+                    else {
+                        console.log("Check if you have sufficient permissions : "+err);
+                    }
+                });
+            }
+        }
+    });
 }
 
 
