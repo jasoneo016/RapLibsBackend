@@ -17,6 +17,7 @@ admin.initializeApp({
 var db = admin.database();
 var artistsRef = db.ref("artists");
 var albumsRef = db.ref("albums");
+var adLibsRef = db.ref("adlibs");
 var lyricsRef = db.ref("lyrics");
 
 deleteDSStore();
@@ -78,8 +79,8 @@ function storeArtistNameImage() {
         for (var i = 0; i < artistList.length; i++) {
             params.Prefix = 'RapLibs/' + artistList[i];
             var artistKey = artistList[i].replace(/[ ,.]/g, "").replace('$', 's').toLowerCase();
-            var artistFace = artistList[i].replace(/[ ,.]/g, "").toLowerCase() + 'face.png';
-            var imageLink = 'https://s3-us-west-1.amazonaws.com/' + 'raplibsbucket/' + params.Prefix + '/' + artistFace;
+            var artistImage = artistList[i].replace(/[ ,.]/g, "").toLowerCase() + '.jpg';
+            var imageLink = 'https://s3-us-west-1.amazonaws.com/' + 'raplibsbucket/' + params.Prefix + '/' + artistImage;
             imageList.push(imageLink);
             artistKeyList.push(artistKey);
         }
@@ -89,7 +90,7 @@ function storeArtistNameImage() {
                 name: artistList[i],
                 image: imageList[i],
                 timestamp: Date.now(),
-                counter: 0
+                counter: getRandomInt(1,1000)
             });
         }
 
@@ -138,7 +139,7 @@ function storeAlbums() {
                 image: albumPicLink,
                 artist: artistName,
                 timestamp: Date.now(),
-                counter: 0
+                counter: getRandomInt(1,1000)
             }
 
             newAlbumsRef.set(albumData);
@@ -172,44 +173,40 @@ function storeAdLibs() {
         if (err) return console.error(err);
 
         for(var i = 0; i < data.Contents.length; i++) {
-            if (data.Contents[i].Key.includes('.mp3')) {
+            if (data.Contents[i].Key.includes('AdLibs')) {
                 var path = data.Contents[i].Key.split('/');
                 var artistName = path[1];
-                if (data.Contents[i].Key.includes('AdLibs') && path[3].includes('.mp3')) {
-                    var mp3AdLibLink = 'https://s3-us-west-1.amazonaws.com/' + 'raplibsbucket/' + data.Contents[i].Key;
-                    var artistKey = artistName.replace(/[ ,.]/g, "").replace('$', 's').toLowerCase();
-                    var artistPic = 'https://s3-us-west-1.amazonaws.com/' + 'raplibsbucket/RapLibs/' + artistName + '/'
-                        + artistKey + '.jpg';
-                    var lyric = path[3].substr(0, path[3].length - 4);
+                var mp3AdLibLink = 'https://s3-us-west-1.amazonaws.com/' + 'raplibsbucket/' + data.Contents[i].Key;
+                var artistKey = artistName.replace(/[ ,.]/g, "").replace('$', 's').toLowerCase();
+                var artistPic = 'https://s3-us-west-1.amazonaws.com/' + 'raplibsbucket/RapLibs/' + artistName + '/'
+                    + artistKey + '.jpg';
+                var adlib = path[3].substr(0, path[3].length - 4);
 
-                    var newLyricsRef = lyricsRef.push();
-                    var uuidKey = newLyricsRef.key;
+                var newAdLibsRef = adLibsRef.push();
+                var uuidKey = newAdLibsRef.key;
 
-                    var adLibData={
-                        artist: artistName,
-                        image: artistPic,
-                        lyric: lyric,
-                        mp3: mp3AdLibLink,
-                        album: '',
-                        song: '',
-                        timestamp: Date.now(),
-                        counter: 0
-                    }
-
-                    newLyricsRef.set(adLibData);
-
-                    if (uniqueArtists.includes(artistKey)) {
-                        adlibuuidCounter++;
-                    } else {
-                        uniqueArtists.push(artistKey);
-                        adlibuuidCounter = 0;
-                    }
-
-                    var uuid = 'uuid' + adlibuuidCounter;
-                    var updatedUUIDs = {};
-                    updatedUUIDs[uuid] = uuidKey;
-                    artistsRef.child(artistKey).child("Ad Libs").update(updatedUUIDs);
+                var adLibData={
+                    artist: artistName,
+                    image: artistPic,
+                    adlib: adlib,
+                    mp3: mp3AdLibLink,
+                    timestamp: Date.now(),
+                    counter: getRandomInt(1,1000)
                 }
+
+                newAdLibsRef.set(adLibData);
+
+                if (uniqueArtists.includes(artistKey)) {
+                    adlibuuidCounter++;
+                } else {
+                    uniqueArtists.push(artistKey);
+                    adlibuuidCounter = 0;
+                }
+
+                var uuid = 'uuid' + adlibuuidCounter;
+                var updatedUUIDs = {};
+                updatedUUIDs[uuid] = uuidKey;
+                artistsRef.child(artistKey).child("Ad Libs").update(updatedUUIDs);
             }
         }
         return;
@@ -252,7 +249,7 @@ function storeLyrics() {
                     album: albumName,
                     song: songName,
                     timestamp: Date.now(),
-                    counter: 0
+                    counter: getRandomInt(1,1000)
                 }
 
                 newLyricsRef.set(lyricsData);
@@ -276,4 +273,8 @@ function storeLyrics() {
 
 function onlyUnique(value, index, self) {
     return self.indexOf(value) === index;
+}
+
+function getRandomInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
 }
